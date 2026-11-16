@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>评测流程工作台</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./workbench.css">
+  <script src="./snapshot.js"></script><script src="./media-map.js"></script><script src="./workbench.js" defer></script>
+</head>
+<body data-share="1">
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><div class="mark" aria-hidden="true">评</div><div><strong>评测流程工作台</strong><small>视频编辑 · 评测与校准</small></div></div>
+  <nav aria-label="工作台入口" inert>
+    <button data-page="generator" class="selected"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5v4M10 13.5v4M2.5 10h4M13.5 10h4M5 5l2.2 2.2M12.8 12.8 15 15M15 5l-2.2 2.2M7.2 12.8 5 15"/></svg><span>生成评测流程</span></button>
+    <button data-page="run"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.5v11l9-5.5z"/></svg><span>评测任务</span></button>
+    <button data-page="flows"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3.5" width="14" height="4" rx="1"/><rect x="3" y="12.5" width="14" height="4" rx="1"/><path d="M10 7.5v5"/></svg><span>评测流程库</span></button>
+    <button data-page="metrics"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="2.5"/></svg><span>评价指标库</span></button>
+    <button data-page="tools"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 3.5a4 4 0 0 0-4.6 5.3L3.5 13.2v3.3h3.3l4.4-4.4a4 4 0 0 0 5.3-4.6l-2.6 2.6-2.4-.5-.5-2.4z"/></svg><span>工具库</span></button>
+  </nav>
+  <div class="sidebar-foot">
+    <span id="health" class="badge">正在连接</span>
+    <p class="notice">结果用于技术试跑和校准，尚未完成业务认可。模型与数据来源以每次运行记录为准。</p>
+  </div>
+</aside>
+<main inert>
+<div id="message" role="status" aria-live="polite" hidden></div>
+
+<section id="page-generator" class="page">
+  <header class="page-head"><h1>生成评测流程</h1><p>描述任务、准备样例，生成候选流程后用样例试跑，查看每一步的材料和结果。</p></header>
+  <div class="columns">
+    <div class="card form-card">
+      <section class="form-step"><h2><span class="step-no">1</span>描述任务</h2>
+        <label>任务描述<textarea id="task-description" rows="4" placeholder="描述要评估的编辑任务、重点和要求"></textarea></label>
+        <label>流程名称<input id="flow-name" placeholder="例如 换脸质量评测"></label>
+      </section>
+      <section class="form-step"><h2><span class="step-no">2</span>准备样例</h2>
+        <p class="hint">普通输出用于试跑；理想效果是可选参考，不会由普通输出代替。多张参考图按选择顺序保存。</p>
+        <div class="fields"><label>样例名称<input id="case-id" placeholder="例如 室内换脸样例"></label><label>普通输出来源<input id="case-output-source" placeholder="例如 已有模型生成结果"></label></div>
+        <label>编辑指令<textarea id="case-instruction" rows="3" placeholder="模型收到的编辑指令"></textarea></label>
+        <div class="fields drop-fields">
+          <label class="drop">有序参考图<small>可多选，按选择顺序保存</small><input id="case-refs" class="visually-hidden-file" type="file" accept="image/*" multiple></label>
+          <label class="drop">源视频<small>可选</small><input id="case-source" class="visually-hidden-file" type="file" accept="video/*"><span id="case-source-name" class="file-name">未选择文件</span></label>
+          <label class="drop">普通输出视频<small>必填</small><input id="case-output" class="visually-hidden-file" type="file" accept="video/*"><span id="case-output-name" class="file-name">未选择文件</span></label>
+          <label class="drop">理想效果<small>可选，图片或视频</small><input id="case-ideal" class="visually-hidden-file" type="file" accept="image/*,video/*"><span id="case-ideal-name" class="file-name">未选择文件</span></label>
+        </div>
+        <div id="reference-order"></div>
+        <button id="create-case" class="btn">上传并保存样例</button><div id="case-created"></div>
+      </section>
+      <section class="form-step"><h2><span class="step-no">3</span>生成并试跑</h2>
+        <label>选择已保存样例<select id="generation-case"></select></label>
+        <p class="hint">候选流程保存后会自动使用所选样例试跑。生成和试跑不会将指标加入公共库；修改已保存的流程请到流程库。</p>
+        <div class="actions"><button id="generate" class="btn primary">生成流程并试跑</button></div>
+        <div class="actions secondary-actions"><button id="check-generation" class="btn small">查看当前生成任务</button><button id="retry-generation" class="btn small">重试未确认的原请求</button><button id="cancel-generation" class="btn small">取消排队任务</button></div>
+        <p class="hint">连接中断时可先查看任务，再按需重试原请求；只能取消尚未领取的任务。</p>
+      </section>
+    </div>
+    <section class="card sticky-card"><div class="card-head"><h2>生成与试跑结果</h2></div><div id="generation-result" class="empty">提交后在这里查看生成状态、指标、计划步骤和试跑结果。</div></section>
+  </div>
+</section>
+
+<section id="page-run" class="page" hidden>
+  <header class="page-head"><h1>评测任务</h1><p>选一个测试任务，管理要比较的几组结果并提交评测；评测完成后打开“分析报告”看横向对比。</p></header>
+  <div class="columns side-left">
+    <div class="stack">
+      <section class="card"><div class="card-head"><h2>测试任务</h2></div>
+        <div id="task-list" class="list"></div><p id="task-list-none" class="empty" hidden>还没有测试任务，在下方新建一个。</p></section>
+      <details class="card fold-card" id="task-create-fold"><summary>新建测试任务</summary>
+        <label>任务名称<input id="ctask-name" placeholder="例如 电商 UGC 参考图生成视频 S2 集"></label>
+        <label>评测流程<select id="ctask-flow"></select></label>
+        <p class="hint">选择要放在一起比较的几组结果（每组一个测试集，通常对应一个模型）。同一条用例按“提示词和参考图相同”自动对齐。</p>
+        <div id="ctask-datasets" class="compare-list"></div>
+        <div class="actions"><button class="btn primary small" data-action="task-create">创建任务</button></div>
+      </details>
+      <details class="card fold-card"><summary>单次评测记录</summary>
+        <p class="hint">每组结果的每一次评测；一般在任务里查看即可，这里用于查看历史或排查问题。</p>
+        <input id="run-search" class="search" type="search" placeholder="搜索：模型、测试集、日期、流程版本" aria-label="搜索评测记录">
+        <div id="run-list" class="list"></div><p id="run-list-none" class="empty" hidden>没有匹配的评测记录。</p></details>
+      <details class="card fold-card"><summary>已删除的记录</summary><div id="archived-list" class="list"></div></details>
+      <details class="card fold-card"><summary>发起新的评测</summary>
+        <label>流程版本<select id="run-flow"></select></label>
+        <div class="fields"><label>运行范围<select id="run-kind"><option value="case">单个样例</option><option value="dataset">测试集</option></select></label><label id="run-case-label">样例<select id="run-case"></select></label><label id="run-dataset-label" hidden>测试集<select id="run-dataset"></select></label></div>
+        <label class="check"><input type="checkbox" id="run-repeat"> 明确重新运行相同内容（再次重跑请重新勾选）</label>
+        <div class="actions"><button id="start-run" class="btn primary">运行评测</button><button id="retry-run" class="btn small">重试未确认的原请求</button><button id="cancel-run" class="btn small">取消排队任务</button></div>
+      </details>
+      <details class="card fold-card"><summary>创建测试集</summary>
+        <label>测试集名称<input id="dataset-id" placeholder="例如 第一批样例"></label><label>说明<input id="dataset-description" placeholder="测试集用途"></label><label>选择样例 <small>可多选</small><select id="dataset-cases" multiple size="4"></select></label><button id="create-dataset" class="btn">保存测试集</button>
+      </details>
+    </div>
+    <section class="card"><div id="run-result" class="empty">从左侧选择一个测试任务。</div></section>
+  </div>
+</section>
+
+<section id="page-report" class="page report-page" hidden>
+  <header class="report-bar">
+    <button class="btn small" data-action="report-back">← 返回评测任务</button>
+    <div class="report-name"><h1 id="report-title">分析报告</h1><span class="dim">分析报告</span></div>
+    <div class="report-tabs" role="tablist" aria-label="报告视图">
+      <button role="tab" data-action="report-tab" data-id="overview">全局总览</button>
+      <button role="tab" data-action="report-tab" data-id="cases">逐例对比</button>
+    </div>
+    <div id="report-scope" class="report-scope"></div>
+  </header>
+  <div class="report-body">
+    <aside class="report-side">
+      <input id="report-search" class="search" type="search" placeholder="搜索用例或类别" aria-label="搜索用例">
+      <label class="check"><input type="checkbox" id="report-missing"> 只看缺结果的用例</label>
+      <div id="report-tree" class="report-tree"></div>
+      <p id="report-side-note" class="report-side-note"></p>
+    </aside>
+    <section id="report-main" class="report-main"><p class="empty">正在载入报告…</p></section>
+  </div>
+</section>
+
+<section id="page-flows" class="page" hidden>
+  <header class="page-head"><h1>评测流程库</h1><p>查看已保存版本的指标、步骤和提示词；修改后另存为新版本，原版本保持不变。</p></header>
+  <div class="columns side-left">
+    <section class="card"><div class="card-head"><h2>流程版本</h2></div><div id="flow-list" class="list"></div></section>
+    <section class="card">
+      <div class="tabs" role="tablist" aria-label="流程版本操作"><button role="tab" data-tab="flow-detail" aria-selected="true">版本详情</button><button role="tab" data-tab="flow-editor" aria-selected="false">修改并另存</button><button role="tab" data-tab="flow-feedback" aria-selected="false">反馈生成新版本</button><button role="tab" data-tab="template-editor" aria-selected="false">指标实现入库</button></div>
+      <div id="flow-detail" class="tab-panel empty">从左侧选择一个流程版本。</div>
+      <div id="flow-editor" class="tab-panel empty" hidden>选择版本后可编辑步骤和提示词。</div>
+      <div id="flow-feedback" class="tab-panel empty" hidden>选择版本后可提交反馈，由评测助手生成并试跑新版本。</div>
+      <div id="template-editor" class="tab-panel empty" hidden>选择版本后可从当前流程创建指标实现提案。</div>
+    </section>
+  </div>
+</section>
+
+<section id="page-metrics" class="page" hidden>
+  <header class="page-head"><h1>评价指标库</h1><p>了解每个指标评价什么、分数含义、适用材料和可执行实现。</p></header>
+  <div class="columns side-left">
+    <section class="card"><div class="card-head"><h2>评价指标</h2></div><div id="metric-list" class="list"></div></section>
+    <section class="card"><div id="metric-detail" class="empty">从左侧选择一个指标。</div></section>
+  </div>
+</section>
+
+<section id="page-tools" class="page" hidden>
+  <header class="page-head"><h1>工具库</h1><p>查看工具用途和参数，上传素材后独立试用。</p></header>
+  <div class="columns side-left">
+    <section class="card"><div class="card-head"><h2>可用工具</h2></div><div id="tool-list" class="list"></div></section>
+    <div class="stack">
+      <section class="card"><div id="tool-detail" class="empty">从左侧选择一个工具。</div></section>
+      <section class="card"><div class="card-head"><h2>独立试用</h2></div>
+        <div class="fields"><label class="drop">上传图片或视频<input id="tool-file" class="visually-hidden-file" type="file" accept="image/*,video/*"><span id="tool-file-name" class="file-name">未选择文件</span></label><div class="upload-side"><button id="tool-upload" class="btn">上传试用素材</button><label>已上传素材<select id="tool-asset"></select></label></div></div>
+        <div class="trial-params"><div class="row"><h3>参数</h3><button id="tool-fill" class="btn small">根据素材填入示例参数</button></div><div id="tool-form"><p class="hint">选择工具后填写参数。</p></div></div>
+        <div class="actions"><button id="tool-run" class="btn primary">试用所选工具</button></div>
+        <div id="tool-result"></div>
+      </section>
+    </div>
+  </div>
+</section>
+</main>
+</div>
+<div id="drawer" class="drawer" hidden>
+  <div class="drawer-backdrop" data-action="drawer-close"></div>
+  <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
+    <header class="drawer-head">
+      <div class="drawer-title"><h2 id="drawer-title"></h2><p id="drawer-sub"></p></div>
+      <div class="drawer-nav">
+        <button class="btn small" data-action="drawer-prev" title="上一条（←）">‹ 上一条</button>
+        <span id="drawer-pos" class="dim"></span>
+        <button class="btn small" data-action="drawer-next" title="下一条（→）">下一条 ›</button>
+        <button class="icon-btn" data-action="drawer-close" title="关闭（Esc）" aria-label="关闭">✕</button>
+      </div>
+    </header>
+    <div id="drawer-body" class="drawer-body"></div>
+  </aside>
+</div>
+<div id="lightbox" class="lightbox" hidden role="dialog" aria-modal="true" aria-label="查看大图">
+  <button class="lightbox-nav prev" data-action="lightbox-prev" aria-label="上一张">‹</button>
+  <figure><img id="lightbox-img" alt=""><figcaption id="lightbox-cap"></figcaption></figure>
+  <button class="lightbox-nav next" data-action="lightbox-next" aria-label="下一张">›</button>
+  <button class="lightbox-close" data-action="lightbox-close" aria-label="关闭">✕</button>
+</div>
+</body>
+</html>
